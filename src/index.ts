@@ -3,6 +3,11 @@ export { filterMethods } from "./agent/engine/filtering.js";
 export { HookManager, type HookHandle } from "./agent/engine/hook-manager.js";
 export type { Inspector } from "./agent/engine/inspector.js";
 export type {
+  HookEnterContext,
+  HookLeaveContext,
+  HookObserver,
+} from "./agent/engine/observer.js";
+export type {
   RuntimeAdapter,
   RuntimeClass,
   RuntimeHookCallbacks,

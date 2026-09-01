@@ -12,6 +12,7 @@ import "../../scripts/class_hooker/ui/index.js";
 import {
   getLegacyToolkit,
   initializeLegacyUi,
+  LegacyAnalysisObserver,
   LegacyConsoleReporter,
   LegacyInspector,
 } from "./compatibility/legacy-runtime.js";
@@ -44,6 +45,7 @@ void Il2Cpp.perform(async () => {
       runtime: new Il2CppRuntimeAdapter(),
       inspector,
       reporter,
+      observers: [new LegacyAnalysisObserver(legacy)],
     });
   } catch (error) {
     const message = error instanceof Error ? error.stack ?? error.message : String(error);

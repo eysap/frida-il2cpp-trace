@@ -13,8 +13,8 @@ export interface RuntimeMethod {
 }
 
 export interface RuntimeHookCallbacks {
-  onEnter(args: InvocationArguments): unknown;
-  onLeave(returnValue: InvocationReturnValue, state: unknown): void;
+  onEnter(args: InvocationArguments, invocation: InvocationContext): unknown;
+  onLeave(returnValue: InvocationReturnValue, state: unknown, invocation: InvocationContext): void;
 }
 
 export interface RuntimeAdapter {

@@ -2,6 +2,7 @@ import { HookManager } from "../agent/engine/hook-manager.js";
 import { ClassDiscovery } from "../agent/engine/discovery.js";
 import { filterMethods } from "../agent/engine/filtering.js";
 import type { Inspector } from "../agent/engine/inspector.js";
+import type { HookObserver } from "../agent/engine/observer.js";
 import type { RuntimeAdapter } from "../agent/runtime/contracts.js";
 import { validateConfig, type RawClassHookerConfig } from "../shared/config.js";
 import type { Reporter } from "../shared/events.js";
@@ -10,6 +11,7 @@ export interface ClassHookerDependencies {
   readonly runtime: RuntimeAdapter;
   readonly inspector: Inspector;
   readonly reporter: Reporter;
+  readonly observers?: readonly HookObserver[];
 }
 
 export async function runClassHooker(
@@ -37,6 +39,7 @@ export async function runClassHooker(
     dependencies.runtime,
     dependencies.inspector,
     dependencies.reporter,
+    dependencies.observers,
   );
   await manager.install(methods, config);
   return manager;

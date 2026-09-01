@@ -84,11 +84,11 @@ export class Il2CppRuntimeAdapter implements RuntimeAdapter {
     return Interceptor.attach(nativeMethod.virtualAddress, {
       onEnter(args) {
         const context = this as InvocationContext & { toolkitState?: unknown };
-        context.toolkitState = callbacks.onEnter(args);
+        context.toolkitState = callbacks.onEnter(args, context);
       },
       onLeave(returnValue) {
         const context = this as InvocationContext & { toolkitState?: unknown };
-        callbacks.onLeave(returnValue, context.toolkitState);
+        callbacks.onLeave(returnValue, context.toolkitState, context);
       },
     });
   }

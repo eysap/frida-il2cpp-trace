@@ -2,6 +2,7 @@ import type { Reporter } from "../../shared/events.js";
 import type { ClassHookerConfig } from "../../shared/config.js";
 import type { RuntimeAdapter, RuntimeMethod } from "../runtime/contracts.js";
 import type { Inspector } from "./inspector.js";
+import type { HookObserver } from "./observer.js";
 
 export interface HookHandle {
   readonly id: string;
@@ -12,6 +13,7 @@ export interface HookHandle {
 
 interface InvocationState {
   readonly callId: string;
+  readonly observerStates: readonly unknown[];
 }
 
 function delay(milliseconds: number): Promise<void> {
@@ -27,6 +29,7 @@ export class HookManager {
     private readonly runtime: RuntimeAdapter,
     private readonly inspector: Inspector,
     private readonly reporter: Reporter,
+    private readonly observers: readonly HookObserver[] = [],
   ) {}
 
   public get size(): number {
@@ -51,8 +54,8 @@ export class HookManager {
       if (this.hooks.has(method.descriptor.id)) continue;
       try {
         const listener = this.runtime.attach(method, {
-          onEnter: (args) => this.onEnter(method, args, config),
-          onLeave: (value, state) => this.onLeave(method, value, state, config),
+          onEnter: (args, invocation) => this.onEnter(method, args, invocation, config),
+          onLeave: (value, state, invocation) => this.onLeave(method, value, state, invocation, config),
         });
         this.hooks.set(method.descriptor.id, { method, listener });
         const handle = this.createHandle(method);
@@ -119,6 +122,7 @@ export class HookManager {
   private onEnter(
     method: RuntimeMethod,
     args: InvocationArguments,
+    invocationContext: InvocationContext,
     config: ClassHookerConfig,
   ): InvocationState {
     const callId = `${method.descriptor.id}#${++this.callSequence}`;
@@ -137,6 +141,24 @@ export class HookManager {
       ? (args[0] as NativePointer).toString()
       : null;
 
+    const observerStates = this.observers.map((observer) => {
+      try {
+        return observer.onEnter?.({
+          method,
+          arguments: args,
+          argumentOffset,
+          invocation: invocationContext,
+          config,
+        });
+      } catch (error) {
+        this.reporter.report({
+          type: "warning",
+          message: `Hook observer failed on ${method.descriptor.name}: ${this.errorMessage(error)}`,
+        });
+        return undefined;
+      }
+    });
+
     this.reporter.report({
       type: "hook.call",
       callId,
@@ -144,21 +166,39 @@ export class HookManager {
       arguments: previews,
       thisPointer,
     });
-    return { callId };
+    return { callId, observerStates };
   }
 
   private onLeave(
     method: RuntimeMethod,
     value: InvocationReturnValue,
     state: unknown,
+    invocationContext: InvocationContext,
     config: ClassHookerConfig,
   ): void {
+    const invocationState = state as InvocationState | undefined;
+    if (!invocationState?.callId) return;
+    this.observers.forEach((observer, index) => {
+      try {
+        observer.onLeave?.({
+          method,
+          returnValue: value,
+          invocation: invocationContext,
+          config,
+          state: invocationState.observerStates[index],
+        });
+      } catch (error) {
+        this.reporter.report({
+          type: "warning",
+          message: `Hook observer failed after ${method.descriptor.name}: ${this.errorMessage(error)}`,
+        });
+      }
+    });
+
     if (!config.logging.returnValue) return;
-    const invocation = state as InvocationState | undefined;
-    if (!invocation?.callId) return;
     this.reporter.report({
       type: "hook.return",
-      callId: invocation.callId,
+      callId: invocationState.callId,
       method: method.descriptor,
       value: this.inspectReturnSafely(method, value),
     });

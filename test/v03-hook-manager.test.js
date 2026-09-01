@@ -31,11 +31,21 @@ test("v0.3 hook manager deduplicates hooks and detaches the complete session", a
     },
   };
   const events = [];
+  const observerStates = [];
   const inspector = {
     inspectArgument: (_value, parameter) => `<${parameter.typeName}>`,
     inspectReturn: () => "void",
   };
-  const manager = new HookManager(runtime, inspector, { report: (event) => events.push(event) });
+  const observer = {
+    onEnter: () => "observer-state",
+    onLeave: ({ state }) => observerStates.push(state),
+  };
+  const manager = new HookManager(
+    runtime,
+    inspector,
+    { report: (event) => events.push(event) },
+    [observer],
+  );
   const method = runtimeMethod();
   const config = validateConfig({
     target: { className: "ApiClient" },
@@ -50,14 +60,19 @@ test("v0.3 hook manager deduplicates hooks and detaches the complete session", a
   assert.equal(handles[0].state, "active");
   assert.equal(registrations.length, 1);
 
-  const state = registrations[0].callbacks.onEnter([
-    { toString: () => "0xaaaa" },
-    { toString: () => "0xbbbb" },
-  ]);
-  registrations[0].callbacks.onLeave({}, state);
+  const invocation = { context: {} };
+  const state = registrations[0].callbacks.onEnter(
+    [
+      { toString: () => "0xaaaa" },
+      { toString: () => "0xbbbb" },
+    ],
+    invocation,
+  );
+  registrations[0].callbacks.onLeave({}, state, invocation);
 
   assert.equal(events.filter(({ type }) => type === "hook.call").length, 1);
   assert.equal(events.filter(({ type }) => type === "hook.return").length, 1);
+  assert.deepEqual(observerStates, ["observer-state"]);
   assert.equal(manager.detachAll(), 1);
   assert.equal(detached, 1);
   assert.equal(manager.size, 0);
