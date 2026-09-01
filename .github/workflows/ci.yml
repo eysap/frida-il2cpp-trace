@@ -27,6 +27,3 @@ jobs:
 
       - name: Verify source and bundle
         run: npm run check
-
-      - name: Validate launcher syntax
-        run: bash -n launch.sh

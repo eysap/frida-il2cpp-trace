@@ -31,7 +31,6 @@ function describeMethod(owner: ClassDescriptor, method: Il2Cpp.Method): MethodDe
   const parameters = method.parameters.map((parameter) => ({
     name: parameter.name ?? "",
     typeName: parameter.type.name,
-    nativeType: parameter.type,
   }));
   const parameterTypes = parameters.map((parameter) => parameter.typeName).join(",");
   const signatureParameters = parameters
@@ -48,7 +47,6 @@ function describeMethod(owner: ClassDescriptor, method: Il2Cpp.Method): MethodDe
     isStatic: method.isStatic,
     parameters,
     returnTypeName: method.returnType.name,
-    nativeReturnType: method.returnType,
     address: address.toString(),
   };
 }
@@ -72,7 +70,12 @@ export class Il2CppRuntimeAdapter implements RuntimeAdapter {
     return asClass(target).methods.flatMap((method) => {
       try {
         if (method.virtualAddress.isNull()) return [];
-        return [{ descriptor: describeMethod(target.descriptor, method), native: method }];
+        return [{
+          descriptor: describeMethod(target.descriptor, method),
+          native: method,
+          nativeParameterTypes: method.parameters.map((parameter) => parameter.type),
+          nativeReturnType: method.returnType,
+        }];
       } catch {
         return [];
       }

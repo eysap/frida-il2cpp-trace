@@ -14,5 +14,10 @@
     "target": "ES2022",
     "types": ["frida-gum"]
   },
-  "include": ["src/**/*.ts"]
+  "include": [
+    "src/agent/**/*.ts",
+    "src/shared/**/*.ts",
+    "src/tools/**/*.ts",
+    "src/index.ts"
+  ]
 }

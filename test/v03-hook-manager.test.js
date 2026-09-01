@@ -13,11 +13,12 @@ function runtimeMethod() {
       name: "Send",
       signature: "System.Void Send(System.String payload)",
       isStatic: false,
-      parameters: [{ name: "payload", typeName: "System.String", nativeType: {} }],
+      parameters: [{ name: "payload", typeName: "System.String" }],
       returnTypeName: "System.Void",
-      nativeReturnType: {},
       address: "0x1234",
     },
+    nativeParameterTypes: [{}],
+    nativeReturnType: {},
   };
 }
 

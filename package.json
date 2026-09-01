@@ -5,18 +5,26 @@
   "description": "Selective instrumentation toolkit for Unity IL2CPP applications",
   "license": "MIT",
   "type": "module",
+  "bin": {
+    "il2cpp-toolkit": "dist/node/host/cli.js"
+  },
   "engines": {
     "node": ">=22.13.0"
   },
   "scripts": {
     "build": "node scripts/build.mjs",
+    "cli": "node dist/node/host/cli.js",
     "lint": "eslint .",
     "test": "node --import tsx --test",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.host.json --noEmit",
     "check": "npm run lint && npm run typecheck && npm test && npm run build"
+  },
+  "dependencies": {
+    "frida": "17.17.0"
   },
   "devDependencies": {
     "@types/frida-gum": "19.10.0",
+    "@types/node": "22.20.1",
     "eslint": "10.9.1",
     "frida-compile": "19.0.5",
     "frida-il2cpp-bridge": "0.13.2",

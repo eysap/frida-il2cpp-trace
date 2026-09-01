@@ -1,29 +1,9 @@
-import type { Reporter } from "../../shared/events.js";
 import type { Inspector } from "../engine/inspector.js";
 import type { HookEnterContext, HookLeaveContext, HookObserver } from "../engine/observer.js";
 import type { ParameterDescriptor } from "../runtime/contracts.js";
 
 interface LegacyUi {
   init(config: unknown): void;
-  info(message: string): void;
-  warn(message: string): void;
-  success(message: string): void;
-  classMatch(index: number, assembly: string, className: string): void;
-  banner(data: { target: string; assembly: string; methodCount: number }): void;
-  methodListStart(className: string, count: number): void;
-  methodListItem(index: number, signature: string, address: string | null): void;
-  methodListEnd(): void;
-  hookInstalled(signature: string): void;
-  hookFailed(signature: string, error: string): void;
-  hookCall(data: {
-    className: string;
-    methodName: string;
-    args: readonly { name: string; value: string }[];
-    thisPtr: string | null;
-    showThis: boolean;
-  }): void;
-  hookReturn(data: { className: string; methodName: string; value: string }): void;
-  hookSummary(installed: number, failed: number, total: number): void;
   stackTrace(stack: string): void;
   httpBlock(data: {
     method: string | null;
@@ -135,7 +115,11 @@ export class LegacyInspector implements Inspector {
     this.maxStringLength = shape.formatting?.strings?.maxLength ?? 200;
   }
 
-  public inspectArgument(value: NativePointer, parameter: ParameterDescriptor): string {
+  public inspectArgument(
+    value: NativePointer,
+    parameter: ParameterDescriptor,
+    nativeType: unknown,
+  ): string {
     const shape = this.config as LegacyConfigShape & {
       readonly formatting?: { readonly numbers?: unknown; readonly strings?: { readonly maxLength?: number } };
     };
@@ -143,7 +127,7 @@ export class LegacyInspector implements Inspector {
       return this.formatters.formatArgRaw(
         value,
         parameter.typeName,
-        parameter.nativeType,
+        nativeType,
         shape.formatting?.numbers,
       );
     }
@@ -152,7 +136,7 @@ export class LegacyInspector implements Inspector {
       parameter.typeName,
       this.maxStringLength,
       this.config,
-      parameter.nativeType,
+      nativeType,
     );
   }
 
@@ -164,69 +148,6 @@ export class LegacyInspector implements Inspector {
       this.config,
       nativeType,
     );
-  }
-}
-
-export class LegacyConsoleReporter implements Reporter {
-  public constructor(private readonly ui: LegacyUi) {}
-
-  public report(event: Parameters<Reporter["report"]>[0]): void {
-    switch (event.type) {
-      case "class.candidate":
-        this.ui.classMatch(event.index, event.class.assembly, event.class.fullName);
-        break;
-      case "class.selected":
-        this.ui.success(`Using [${event.index}] ${event.class.assembly} -> ${event.class.fullName}`);
-        break;
-      case "session.started":
-        this.ui.banner({
-          target: event.class.fullName,
-          assembly: event.class.assembly,
-          methodCount: event.methodCount,
-        });
-        this.ui.methodListStart(event.class.fullName, event.discoveredMethodCount);
-        break;
-      case "method.discovered":
-        this.ui.methodListItem(event.index, event.method.signature, event.method.address);
-        break;
-      case "hook.installing":
-        this.ui.info(`Hooking ${event.count} methods...`);
-        break;
-      case "method.discovery.completed":
-        this.ui.methodListEnd();
-        break;
-      case "hook.installed":
-        this.ui.hookInstalled(event.method.signature);
-        break;
-      case "hook.failed":
-        this.ui.hookFailed(event.method.signature, event.error);
-        break;
-      case "hook.call":
-        this.ui.hookCall({
-          className: event.method.className,
-          methodName: event.method.name,
-          args: event.arguments,
-          thisPtr: event.thisPointer,
-          showThis: event.thisPointer !== null,
-        });
-        break;
-      case "hook.return":
-        this.ui.hookReturn({
-          className: event.method.className,
-          methodName: event.method.name,
-          value: event.value,
-        });
-        break;
-      case "session.completed":
-        this.ui.hookSummary(event.installed, event.failed, event.total);
-        break;
-      case "warning":
-        this.ui.warn(event.message);
-        break;
-      case "hook.detached":
-        this.ui.info(`Detached ${event.method.signature}`);
-        break;
-    }
   }
 }
 
@@ -335,7 +256,10 @@ export class LegacyAnalysisObserver implements HookObserver {
   }
 }
 
-export function initializeLegacyUi(toolkit: LegacyToolkit): void {
-  const config = toolkit.CONFIG as LegacyConfigShape;
+export function initializeLegacyUi(
+  toolkit: LegacyToolkit,
+  source: Record<string, unknown>,
+): void {
+  const config = source as LegacyConfigShape;
   toolkit.ui.init(config.ui);
 }

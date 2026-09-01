@@ -10,6 +10,8 @@ export interface RuntimeClass {
 export interface RuntimeMethod {
   readonly descriptor: MethodDescriptor;
   readonly native: unknown;
+  readonly nativeParameterTypes: readonly unknown[];
+  readonly nativeReturnType: unknown;
 }
 
 export interface RuntimeHookCallbacks {

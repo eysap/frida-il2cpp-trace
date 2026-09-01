@@ -1,0 +1,22 @@
+{
+  "target": {
+    "assembly": "Assembly-CSharp",
+    "namespace": "Example.Network",
+    "className": "ApiClient"
+  },
+  "filters": {
+    "methodRegex": "^(Send|Receive)",
+    "exclude": []
+  },
+  "performance": {
+    "enabled": true,
+    "hookDelayMs": 25,
+    "maxHooks": 100
+  },
+  "logging": {
+    "args": true,
+    "return": false,
+    "showThis": true,
+    "maxArgs": 8
+  }
+}

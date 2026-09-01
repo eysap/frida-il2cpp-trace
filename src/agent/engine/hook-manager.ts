@@ -134,6 +134,7 @@ export class HookManager {
             method,
             args[index + argumentOffset] as NativePointer,
             parameter,
+            method.nativeParameterTypes[index],
           ),
         }))
       : [];
@@ -208,9 +209,10 @@ export class HookManager {
     method: RuntimeMethod,
     value: NativePointer,
     parameter: RuntimeMethod["descriptor"]["parameters"][number],
+    nativeType: unknown,
   ): string {
     try {
-      return this.inspector.inspectArgument(value, parameter);
+      return this.inspector.inspectArgument(value, parameter, nativeType);
     } catch (error) {
       this.reporter.report({
         type: "warning",
@@ -225,7 +227,7 @@ export class HookManager {
       return this.inspector.inspectReturn(
         value,
         method.descriptor.returnTypeName,
-        method.descriptor.nativeReturnType,
+        method.nativeReturnType,
       );
     } catch (error) {
       this.reporter.report({

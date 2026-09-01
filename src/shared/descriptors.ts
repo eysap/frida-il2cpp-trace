@@ -9,7 +9,6 @@ export interface ClassDescriptor {
 export interface ParameterDescriptor {
   readonly name: string;
   readonly typeName: string;
-  readonly nativeType: unknown;
 }
 
 export interface MethodDescriptor {
@@ -20,6 +19,5 @@ export interface MethodDescriptor {
   readonly isStatic: boolean;
   readonly parameters: readonly ParameterDescriptor[];
   readonly returnTypeName: string;
-  readonly nativeReturnType: unknown;
   readonly address: string;
 }
