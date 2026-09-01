@@ -4,7 +4,7 @@ import { mkdir } from "node:fs/promises";
 await mkdir("dist", { recursive: true });
 
 const executable = process.platform === "win32" ? "frida-compile.cmd" : "frida-compile";
-const compiler = spawn(executable, ["src/agent.js", "-o", "dist/agent.js", "-c"], {
+const compiler = spawn(executable, ["src/agent/index.ts", "-o", "dist/agent.js", "-c"], {
   stdio: "inherit",
 });
 

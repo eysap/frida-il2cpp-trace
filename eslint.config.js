@@ -1,3 +1,5 @@
+import tseslint from "typescript-eslint";
+
 const fridaGlobals = {
   Backtracer: "readonly",
   DebugSymbol: "readonly",
@@ -15,7 +17,7 @@ const fridaGlobals = {
   uint64: "readonly",
 };
 
-export default [
+export default tseslint.config(
   {
     ignores: ["dist/**", "node_modules/**"],
   },
@@ -45,4 +47,18 @@ export default [
       "no-useless-escape": "error"
     },
   },
-];
+  ...tseslint.configs.recommended.map((config) => ({
+    ...config,
+    files: ["src/**/*.ts"],
+  })),
+  {
+    files: ["src/**/*.ts"],
+    languageOptions: {
+      globals: fridaGlobals,
+    },
+    rules: {
+      "@typescript-eslint/consistent-type-imports": "error",
+      "@typescript-eslint/no-explicit-any": "error",
+    },
+  },
+);

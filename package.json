@@ -1,6 +1,6 @@
 {
   "name": "frida-il2cpp-toolkit",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Selective instrumentation toolkit for Unity IL2CPP applications",
   "license": "MIT",
@@ -11,13 +11,17 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "lint": "eslint .",
-    "test": "node --test",
-    "check": "npm run lint && npm test && npm run build"
+    "test": "node --import tsx --test",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run lint && npm run typecheck && npm test && npm run build"
   },
   "devDependencies": {
     "@types/frida-gum": "19.10.0",
     "eslint": "10.9.1",
     "frida-compile": "19.0.5",
-    "frida-il2cpp-bridge": "0.13.2"
+    "frida-il2cpp-bridge": "0.13.2",
+    "tsx": "4.23.13",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.69.0"
   }
 }
