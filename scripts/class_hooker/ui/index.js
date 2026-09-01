@@ -218,7 +218,7 @@
     return `${c.key(paddedKey)} : ${value}`;
   }
 
-  function buildCallKey(opts, cfg) {
+  function buildCallKey(opts, _cfg) {
     const argsKey = opts.args
       ? opts.args.map(a => `${a.name}=${a.value}`).join('|')
       : '';

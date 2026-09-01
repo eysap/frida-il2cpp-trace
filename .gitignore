@@ -2,6 +2,7 @@
 
 # Node modules (if any tooling added later)
 node_modules/
+dist/
 
 # Editor files
 .vscode/

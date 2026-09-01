@@ -21,6 +21,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR" 
 CLASS_HOOKER_DIR="$PROJECT_ROOT/scripts/class_hooker"
+DIST_AGENT="$PROJECT_ROOT/dist/agent.js"
 
 # ============================================================================
 # CONFIGURATION: frida-il2cpp-bridge path
@@ -146,6 +147,19 @@ validate_bridge_path() {
 }
 
 validate_modules() {
+    if [[ -f "$DIST_AGENT" && "${FORCE_LEGACY_SOURCE:-0}" != "1" ]]; then
+        echo -e "${GREEN}✓ Using reproducible bundled agent:${NC}"
+        echo "  $DIST_AGENT"
+        echo ""
+        MODULE_LIST=("$DIST_AGENT")
+        return
+    fi
+
+    echo -e "${YELLOW}Bundled agent not found; using legacy source loading.${NC}"
+    echo -e "${GRAY}Run 'npm ci && npm run build' to create dist/agent.js.${NC}"
+    echo ""
+    validate_bridge_path
+
     # Module loading order
     local MODULES=(
         "$BRIDGE_PATH"
@@ -242,6 +256,7 @@ main() {
                 ;;
             --bridge)
                 BRIDGE_PATH="$2"
+                FORCE_LEGACY_SOURCE=1
                 echo -e "${YELLOW}Using bridge override: $BRIDGE_PATH${NC}"
                 echo ""
                 shift 2
@@ -264,7 +279,6 @@ main() {
 
     # Validate environment
     check_dependencies
-    validate_bridge_path
     validate_modules
 
     # Build and execute frida command
