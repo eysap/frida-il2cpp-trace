@@ -42,6 +42,8 @@ function prettyEvent(event: ToolkitEvent): string | null {
 
 export class EventOutput {
   private readonly file?: WriteStream;
+  private readonly fileReady?: Promise<void>;
+  private fileError?: Error;
 
   public constructor(
     private readonly format: OutputFormat,
@@ -49,7 +51,16 @@ export class EventOutput {
     private readonly stdout: LineWriter = { write: (line) => process.stdout.write(line) },
     private readonly stderr: LineWriter = { write: (line) => process.stderr.write(line) },
   ) {
-    if (outputPath) this.file = createWriteStream(outputPath, { flags: "w" });
+    if (outputPath) {
+      this.file = createWriteStream(outputPath, { flags: "w" });
+      this.fileReady = new Promise((resolve) => {
+        this.file?.once("open", () => resolve());
+        this.file?.once("error", () => resolve());
+      });
+      this.file.on("error", (error) => {
+        this.fileError ??= error;
+      });
+    }
   }
 
   public event(event: ToolkitEvent): void {
@@ -71,9 +82,16 @@ export class EventOutput {
 
   public async close(): Promise<void> {
     if (!this.file) return;
+    await this.fileReady;
+    if (this.fileError) throw this.fileError;
     await new Promise<void>((resolve, reject) => {
-      this.file?.once("error", reject);
-      this.file?.end(resolve);
+      const onError = (error: Error): void => reject(error);
+      this.file?.once("error", onError);
+      this.file?.end(() => {
+        this.file?.off("error", onError);
+        if (this.fileError) reject(this.fileError);
+        else resolve();
+      });
     });
   }
 

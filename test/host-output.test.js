@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import test from "node:test";
 
 import { EventOutput } from "../src/host/output.ts";
@@ -46,4 +48,10 @@ test("jsonl host output keeps agent logs away from the event stream", async () =
 
   assert.equal(JSON.parse(stdout[0]).type, "class.selected");
   assert.deepEqual(stderr, ["[agent:info] runtime ready\n"]);
+});
+
+test("output path errors are reported by close instead of crashing the process", async () => {
+  const output = new EventOutput("jsonl", join(tmpdir(), "missing-il2cpp-toolkit-directory", "events.jsonl"));
+  output.event(selectedEvent);
+  await assert.rejects(output.close(), /ENOENT/u);
 });

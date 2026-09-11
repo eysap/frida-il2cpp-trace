@@ -18,6 +18,16 @@ interface ToolkitPayload {
   readonly event: ToolkitEvent;
 }
 
+export interface SessionDependencies {
+  readonly getDevice: typeof resolveDevice;
+  readonly readAgent: (path: string) => Promise<string>;
+}
+
+const defaultSessionDependencies: SessionDependencies = {
+  getDevice: resolveDevice,
+  readAgent: (path) => readFile(resolve(path), "utf8"),
+};
+
 function isToolkitPayload(value: unknown): value is ToolkitPayload {
   if (!value || typeof value !== "object") return false;
   const candidate = value as Partial<ToolkitPayload>;
@@ -66,21 +76,25 @@ export class ActiveSession {
     options: CliOptions & { readonly target: TargetOptions; readonly agentPath: string },
     config: RawClassHookerConfig,
     output: EventOutput,
+    dependencies: SessionDependencies = defaultSessionDependencies,
   ): Promise<ActiveSession> {
-    const device = await resolveDevice(options.device, options.remoteAddress);
+    const device = await dependencies.getDevice(options.device, options.remoteAddress);
     const spawned = options.target.kind === "spawn";
     const target = spawned
       ? await device.spawn(options.target.value)
       : options.target.value;
-    const session = await device.attach(target);
-    const source = await readFile(resolve(options.agentPath), "utf8");
-    const script = await session.createScript(source, { name: "frida-il2cpp-toolkit" });
-    script.logHandler = (level, text) => output.log(level, text);
-    script.message.connect((message, data) => ActiveSession.handleMessage(message, data, output));
-    await script.load();
-
-    const active = new ActiveSession(session, script, output);
+    let session: Session | undefined;
+    let script: Script | undefined;
+    let active: ActiveSession | undefined;
     try {
+      session = await device.attach(target);
+      const source = await dependencies.readAgent(options.agentPath);
+      script = await session.createScript(source, { name: "frida-il2cpp-toolkit" });
+      script.logHandler = (level, text) => output.log(level, text);
+      script.message.connect((message, data) => ActiveSession.handleMessage(message, data, output));
+      await script.load();
+
+      active = new ActiveSession(session, script, output);
       const agent = script.exports as unknown as AgentExports;
       const start = agent.start(config);
       if (spawned) await device.resume(target);
@@ -94,7 +108,18 @@ export class ActiveSession {
           // The process may already have resumed or exited.
         }
       }
-      await active.stop();
+      if (active) {
+        await active.stop();
+      } else {
+        if (script) {
+          try {
+            await script.unload();
+          } catch {
+            // The script may not have loaded successfully.
+          }
+        }
+        if (session && !session.isDetached()) await session.detach();
+      }
       throw error;
     }
   }

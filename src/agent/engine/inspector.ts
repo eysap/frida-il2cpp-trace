@@ -17,7 +17,6 @@ export class Il2CppInspector implements Inspector {
 
   private inspect(value: NativePointer, typeName: string, type: Il2Cpp.Type): string {
     if (typeName === "System.Void") return "void";
-    if (value.isNull()) return "null";
 
     switch (type.enumValue) {
       case Il2Cpp.Type.Enum.BOOLEAN:
@@ -31,9 +30,10 @@ export class Il2CppInspector implements Inspector {
       case Il2Cpp.Type.Enum.CHAR:
         return String(value.toInt32());
       case Il2Cpp.Type.Enum.STRING:
+        if (value.isNull()) return "null";
         return JSON.stringify(new Il2Cpp.String(value).content) ?? "null";
       default:
-        return value.toString();
+        return value.isNull() ? "null" : value.toString();
     }
   }
 }

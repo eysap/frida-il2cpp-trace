@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { loadConfig } from "./config-loader.js";
@@ -8,15 +9,20 @@ import { EventOutput } from "./output.js";
 import { ActiveSession, listProcesses } from "./session.js";
 import { validateConfig } from "../shared/config.js";
 
-async function main(): Promise<void> {
-  const options = parseOptions(process.argv.slice(2));
+export interface CliIo {
+  readonly stdout: { write(value: string): unknown };
+  readonly stderr: { write(value: string): unknown };
+}
+
+async function execute(args: readonly string[], io: CliIo): Promise<void> {
+  const options = parseOptions(args);
   if (options.command === "help") {
-    process.stdout.write(usage);
+    io.stdout.write(usage);
     return;
   }
   if (options.command === "list") {
     const processes = await listProcesses(options.device, options.remoteAddress);
-    process.stdout.write(`${processes.join("\n")}\n`);
+    io.stdout.write(`${processes.join("\n")}\n`);
     return;
   }
 
@@ -46,9 +52,22 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
-  process.stderr.write(`error: ${message}\n`);
-  if (error instanceof UsageError) process.stderr.write(`\n${usage}`);
-  process.exitCode = 1;
-});
+export async function runCli(
+  args: readonly string[],
+  io: CliIo = { stdout: process.stdout, stderr: process.stderr },
+): Promise<number> {
+  try {
+    await execute(args, io);
+    return 0;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    io.stderr.write(`error: ${message}\n`);
+    if (error instanceof UsageError) io.stderr.write(`\n${usage}`);
+    return 1;
+  }
+}
+
+const entryPath = process.argv[1];
+if (entryPath && resolve(entryPath) === fileURLToPath(import.meta.url)) {
+  process.exitCode = await runCli(process.argv.slice(2));
+}
