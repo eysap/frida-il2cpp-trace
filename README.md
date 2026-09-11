@@ -1,249 +1,203 @@
 # Frida IL2CPP Toolkit
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-410099.svg)](https://opensource.org/licenses/MIT)
-[![Frida](https://img.shields.io/badge/Frida-16.x+-00bcd4)](https://frida.re)
-[![IL2CPP](https://img.shields.io/badge/Runtime-IL2CPP-9c27b0?logo=unity&logoColor=white)](https://docs.unity3d.com/Manual/IL2CPP.html)
-[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20Android%20%7C%20iOS-lightgrey)](https://frida.re)
+[![License: MIT](https://img.shields.io/badge/License-MIT-410099?style=flat-square&labelColor=0d1117)](LICENSE)
+[![Node.js 22+](https://img.shields.io/badge/Node.js-22%2B-339933?style=flat-square&labelColor=0d1117&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Frida 17](https://img.shields.io/badge/Frida-17-00bcd4?style=flat-square&labelColor=0d1117)](https://frida.re/)
 
+Selective, stability-first runtime instrumentation for large Unity IL2CPP applications.
 
-Modular, stability-first Frida toolkit for **Unity IL2CPP reverse engineering**.
+Frida IL2CPP Toolkit finds one managed class, selects only the methods you care
+about, and installs hooks at a controlled rate. It is designed for high-signal
+sessions where tracing an entire application would produce too much noise or
+destabilize the target.
 
-Designed for **selective, high-signal analysis** of large IL2CPP codebases — not blind mass-hooking.
+> Use this toolkit only on software you own or are authorized to analyze.
 
----
+## What it looks like
 
-## TL;DR
-
-* Modular Frida toolkit for Unity IL2CPP
-* Selective class & method hooking with intelligent type analysis
-* Focus on **stability, performance, and signal quality**
-
----
-
-## Why This Toolkit Exists
-
-Designed to solve a different problem :
-
-* Safely explore **large IL2CPP applications**
-* Hook **only what matters**, with predictable performance
-* Inspect complex managed objects **without crashing the process**
-
-The goal is not coverage.
-The goal is **signal**.
-
----
-
-## Design Principles
-
-* **Stability over coverage**
-* **Explicit targeting** over implicit heuristics
-* **Shallow inspection by default**, deep only when requested
-* **No hidden global state**, no side effects outside hooks
-
-These principles drive every architectural and configuration choice.
-
----
-
-## Core Features
-
-### Core Capabilities
-
-* **Modular architecture** with strict separation of concerns
-* **Flexible targeting** by assembly, namespace, class name, or regex
-* **Intelligent type handling** for String, Dictionary<K,V>, List<T>, Multimap
-* **Object introspection** with safe previews and controlled depth
-* **HTTP-aware analysis** for request / response flows
-
-### Analysis Features
-
-* Rate-limited **method hooking** to preserve IL2CPP stability
-  *(default: 300 hooks, 25 ms delay)*
-* Type-aware **argument and return value logging**
-* Optional **stack traces** for debugging
-* Validated pointer operations with graceful failure handling
-
-### Performance & Safety
-
-* Class type caching to avoid repeated reflection
-* Dump deduplication to prevent redundant memory walks
-* Hard safety limits for arrays, stacks, and dumps
-* IIFE-based module isolation (no global pollution)
-
----
-
-## Architecture Overview
-
-```
-scripts/class_hooker/
-├── constants.js       # Memory offsets and safety limits
-├── config.js         # User configuration
-├── utils.js          # Pure helpers (no Il2Cpp side effects)
-├── formatters.js     # Rendering only (no memory reads)
-├── http-analysis.js  # HTTP request/response logic
-├── core.js           # Il2Cpp interaction & hook lifecycle
-└── index.js          # Entry point & orchestration
+```text
+Selected Assembly-CSharp -> Example.Network.ApiClient
+Discovered 18 methods; selected 2
+Installing 2 hooks...
+  + System.Void Send(System.String payload) @ 0x7f33a28140
+  + System.String Receive() @ 0x7f33a28310
+Active hooks: 2; failed: 0; candidates: 2
+-> Example.Network.ApiClient.Send(payload="hello") this=0x7f3499c120
+<- Example.Network.ApiClient.Receive: "accepted"
 ```
 
-**Module loading order is explicit and intentional:**
+For pipelines, the same events can be emitted as JSON Lines:
 
-`constants → config → utils → formatters → http-analysis → core → index`
+```json
+{"timestamp":"2026-09-11T12:00:00.000Z","type":"hook.call","callId":"Assembly-CSharp:Example.Network.ApiClient:Send(System.String)#1","method":{"id":"Assembly-CSharp:Example.Network.ApiClient:Send(System.String)","className":"Example.Network.ApiClient","name":"Send","signature":"System.Void Send(System.String payload)","isStatic":false,"parameters":[{"name":"payload","typeName":"System.String"}],"returnTypeName":"System.Void","address":"0x7f33a28140"},"arguments":[{"name":"payload","value":"\"hello\""}],"thisPointer":"0x7f3499c120"}
+```
 
----
+## Why use it
+
+- Target classes by assembly, namespace and exact or partial class name.
+- Compose method substring, regular-expression and exclusion filters.
+- Preview strings, primitives and pointers without deep object traversal.
+- Rate-limit installation and cap the number of active hooks.
+- Detach every hook cleanly when the session ends.
+- Consume human-readable output or structured JSONL events.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    CLI[Node.js CLI] -->|config + RPC| Agent[Injected agent]
+    Agent --> Discovery[Class discovery]
+    Discovery --> Filters[Method filters]
+    Filters --> Hooks[Hook manager]
+    Hooks --> Bridge[frida-il2cpp-bridge]
+    Bridge <--> Target[Unity IL2CPP process]
+    Hooks -->|typed events| CLI
+```
+
+The host owns device selection, process attachment and output. The injected agent
+owns IL2CPP discovery, value inspection and hook lifecycle. There is one supported
+implementation: the TypeScript source under `src/`.
 
 ## Requirements
 
-* [Frida](https://frida.re/) **16.x+**
-* [frida-il2cpp-bridge](https://github.com/vfsfitvnm/frida-il2cpp-bridge) by vfsfitvnm
-* Target Unity application built with **IL2CPP**
+- Node.js 22.13 or newer
+- A target application built with Unity IL2CPP
+- A Frida setup compatible with the target device
 
----
-
-## Quick Start
-
-### Launch Script Helper
+## Quick start
 
 ```bash
-./launch.sh --help
+git clone https://github.com/eysap/frida-il2cpp-toolkit.git
+cd frida-il2cpp-toolkit
+npm ci
+npm run build
 ```
 
+Create `target.json`:
+
+```json
+{
+  "target": {
+    "assembly": "Assembly-CSharp",
+    "namespace": "Example.Network",
+    "className": "ApiClient"
+  },
+  "filters": {
+    "methodRegex": "^(Send|Receive)$"
+  },
+  "performance": {
+    "hookDelayMs": 25,
+    "maxHooks": 100
+  },
+  "logging": {
+    "args": true,
+    "return": true,
+    "showThis": true
+  }
+}
 ```
-Usage: ./launch.sh [OPTIONS]
+
+Attach to a running process:
+
+```bash
+npm run cli -- --name "Game.x64" --config target.json
+```
+
+Or spawn an application on a USB device:
+
+```bash
+npm run cli -- \
+  --spawn com.example.game \
+  --device usb \
+  --config target.json
+```
+
+List processes visible to Frida:
+
+```bash
+npm run cli -- --list --device usb
+```
+
+## CLI
+
+```text
+Targets:
+  -p, --pid PID           attach to a process ID
+  -n, --name NAME         attach by process name
+  -f, --spawn PROGRAM     spawn a package or executable
 
 Options:
-  -p, --pid PID           Attach to process by PID
-  -n, --name NAME         Attach to process by name
-  -f, --spawn PACKAGE     Spawn and attach to package/binary
-  -d, --device DEVICE     Use specific device (default: local)
-  -H, --host HOST         Connect to remote frida-server
-  --bridge PATH           Override frida-il2cpp-bridge path
-  --list                  List running processes
-  --help                  Show this help message
-
-Examples:
-  ./launch.sh -p 12345              # Attach to PID
-  ./launch.sh -n "bin.x64"          # Attach by name
-  ./launch.sh -f com.example.app    # Spawn and attach
-  ./launch.sh --bridge /path/to/bridge.js # Override bridge path
-  ./launch.sh --list                   # List processes
-
-Configuration:
-  Set BRIDGE_PATH in this script for persistent configuration,
-  or use --bridge for a one-time override.
+  -c, --config PATH       JSON configuration file
+  -D, --device DEVICE     local, usb, remote, or a Frida device ID
+  -H, --host ADDRESS      connect to a remote frida-server
+      --agent PATH        use a custom compiled agent
+      --format FORMAT     pretty or jsonl
+  -o, --output PATH       write events to a file
+      --list              list processes
+  -h, --help              show help
 ```
 
-> **Tip**: Set `BRIDGE_PATH` in `launch.sh` once, then use simple commands like `./launch.sh -n "bin.x64"`
+## Configuration reference
 
----
+| Key | Type | Default | Purpose |
+| --- | --- | --- | --- |
+| `target.assembly` | string or null | `null` | Assembly, with optional `.dll` suffix |
+| `target.namespace` | string or null | `null` | Exact managed namespace |
+| `target.className` | string | required | Exact or fully-qualified class name |
+| `target.fullName` | string or null | `null` | Alternative fully-qualified selector |
+| `target.allowPartial` | boolean | `false` | Match class names by substring |
+| `target.pickIndex` | integer | `0` | Choose among several matches |
+| `filters.methodNameContains` | string or null | `null` | Required method-name substring |
+| `filters.methodRegex` | string or null | `null` | Regular expression for method names |
+| `filters.exclude` | string[] | `[]` | Method names or signatures to skip |
+| `performance.enabled` | boolean | `true` | Enable hook installation |
+| `performance.hookDelayMs` | number | `25` | Delay between installations |
+| `performance.maxHooks` | positive integer | `300` | Hard cap on installed hooks |
+| `logging.args` | boolean | `true` | Preview arguments |
+| `logging.return` | boolean | `false` | Preview return values |
+| `logging.showThis` | boolean | `true` | Include the instance pointer |
+| `logging.maxArgs` | non-negative integer | `8` | Maximum arguments per call |
 
-## Output Examples
+Selectors are combined: a method must satisfy every configured positive filter
+and must not match an exclusion.
 
-![Hook Output Example](screenshots/hook.png)
+## Structured output
 
----
+Use `--format jsonl` when another tool will consume the session. Events cover
+class selection, discovery, hook installation, calls, returns, detachments and
+warnings. Agent diagnostics stay on stderr so stdout remains valid JSONL.
 
-### 1. Configure Your Target
-
-`scripts/class_hooker/config.js`:
-
-```js
-const CONFIG = {
-  target: {
-    namespace: "Com.Example.Network",
-    className: "ApiClient",
-  },
-  filters: {
-    methodRegex: "^Send|^Receive",
-  },
-  logging: {
-    args: true,
-  },
-};
+```bash
+npm run cli -- --name Game.x64 --config target.json \
+  --format jsonl --output session.jsonl
 ```
 
-> You only need `target`, `filters`, and `logging` to get started.
-> Everything else defaults to safe, conservative behavior, but remains fully tunable for when you need to go surgical.
+## Development
 
----
-
-## Usage Examples
-
-### Hook All Methods in a Class
-
-```js
-target: {
-  namespace: "App.Network",
-  className: "ApiManager",
-}
+```bash
+npm ci
+npm run check
 ```
 
-### Hook Only Getters / Setters
+`npm run check` runs ESLint, both TypeScript configurations, the Node test suite
+and the production agent/host build. Pull requests run the same command in CI.
 
-```js
-filters: {
-  methodRegex: "^get_|^set_",
-}
+```text
+src/
+├── agent/    # injected runtime, inspection and hook lifecycle
+├── host/     # CLI, Frida session and output
+├── shared/   # configuration, selectors, descriptors and events
+└── tools/    # toolkit orchestration
+test/         # unit and CLI integration tests
 ```
 
-### HTTP Request Analysis
+## Limitations
 
-```js
-target: {
-  fullName: "RestSharp.RestClient",
-}
-analysis: {
-  http: { enabled: true },
-}
-```
-
-### Deep Object Dumping (Explicit)
-
-```js
-dump: {
-  enabled: true,
-  types: ["UserProfile", "GameState"],
-}
-```
-
----
-
-## Troubleshooting
-
-### `Il2Cpp is not defined`
-
-[frida-il2cpp-bridge](https://github.com/vfsfitvnm/frida-il2cpp-bridge) **must** be loaded first.
-
-
-### No Matching Class
-
-* Check namespace / className
-* Try `allowPartial: true`
-* Remove `assembly` restriction
-
-### Hooks Failing
-
-* Reduce `maxHooks`
-* Increase `hookDelayMs`
-* Abstract / native methods cannot be hooked
-
----
-
-## Contributing
-
-This repository is a **technical portfolio project**.
-
-Issues and suggestions are welcome, but the codebase is intentionally opinionated and not designed as a general-purpose community tool.
-
----
+- Value previews are intentionally shallow; arbitrary object graphs are not walked.
+- A valid Frida/target pairing is required for a live instrumentation test.
+- Methods without a usable virtual address are skipped.
+- Platform-specific calling conventions can require target-specific testing.
 
 ## License
 
-MIT License — see `LICENSE`.
-
----
-
-## Disclaimer
-
-This toolkit is intended for **authorized security research and reverse engineering only**.
-Users are responsible for complying with applicable laws and terms of service.
-
----
+Released under the [MIT License](LICENSE).

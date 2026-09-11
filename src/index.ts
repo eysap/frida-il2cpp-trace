@@ -1,7 +1,7 @@
 export { ClassDiscovery, ClassNotFoundError } from "./agent/engine/discovery.js";
 export { filterMethods } from "./agent/engine/filtering.js";
 export { HookManager, type HookHandle } from "./agent/engine/hook-manager.js";
-export type { Inspector } from "./agent/engine/inspector.js";
+export { Il2CppInspector, type Inspector } from "./agent/engine/inspector.js";
 export type {
   HookEnterContext,
   HookLeaveContext,

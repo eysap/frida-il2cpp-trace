@@ -30,6 +30,13 @@ export function normalizeClassSelector(selector: ClassSelector): NormalizedClass
     const separator = fullName.lastIndexOf(".");
     namespace = separator === -1 ? null : fullName.slice(0, separator);
     className = separator === -1 ? fullName : fullName.slice(separator + 1);
+  } else if (!namespace && className.includes(".")) {
+    // Accept a fully-qualified class name in className as well. This is a
+    // common configuration shape and descriptor.name only contains the short
+    // class name at runtime.
+    const separator = className.lastIndexOf(".");
+    namespace = className.slice(0, separator);
+    className = className.slice(separator + 1);
   }
 
   return {

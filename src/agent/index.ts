@@ -8,7 +8,7 @@ rpc.exports = {
   hookcount(): number {
     return hookCount();
   },
-  async start(config?: RawClassHookerConfig): Promise<{ hookCount: number }> {
+  async start(config: RawClassHookerConfig): Promise<{ hookCount: number }> {
     return startAgent(config);
   },
 };

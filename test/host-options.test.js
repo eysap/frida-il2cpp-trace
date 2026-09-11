@@ -42,3 +42,12 @@ test("host CLI list mode does not require a target or config", () => {
     outputPath: undefined,
   });
 });
+
+test("host CLI validates PID, option values and output formats", () => {
+  assert.throws(() => parseOptions(["--pid", "0", "--config", "target.json"]), /positive integer/u);
+  assert.throws(() => parseOptions(["--name"]), /requires a value/u);
+  assert.throws(
+    () => parseOptions(["--name", "game", "--config", "target.json", "--format", "xml"]),
+    /pretty or jsonl/u,
+  );
+});
